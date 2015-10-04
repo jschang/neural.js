@@ -1,0 +1,41 @@
+when to add neurons to a neural network.  network evolution
+
+essentially, a network is bayesian.  the probability of x given y.  p( a|p( b|c ) )
+
+1.0/(1.0 + e^(input * weight)) - threshold = output
+
+starting with the most simple network possible: 1 input, 1 output.
+
+when to add an input?
+    what is an input?  a factor to take into account.
+    
+when to add an output?
+    what is an output?  a probability that a classification is correct or a regression curve value.
+    
+when to add a middle layer?
+    are there middle layers, or do we add intermediate neurons based on a heuristic or decision tree?
+when to connect an input to the middle layer?
+    if we add intermediate neurons and connect to them based on an as of yet undiscovered algorithm, 
+    then middle "layers" are not a talking point.
+    
+when to disconnect a neuron from another neuron?
+
+when to back connect a neuron to another neuron?
+
+when to laterally connect neurons?
+
+where to connect neuron output: weight, threshold, or simply as an input?
+
+how and when to adjust threshold?  weight?
+
+what is the goal?
+    to add information, while retaining information.
+
+    different types of n
+
+cases:
+1) mix of boolean and raw value inputs.
+    eg. 
+2) classify a sequence of precursory events and their associated result
+
+Perhaps run both the known 
