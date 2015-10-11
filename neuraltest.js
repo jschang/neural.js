@@ -195,7 +195,7 @@ var tests = {
             runsSinceLast++;
         }
         runs++;
-    } while( runs!=100000 );
+    } while( runs!=100 );
     for(var i = 0; i<samples.samples.length; i++ ) {
         var runData = net.forward(samples.samples[i]);
         console.log('sample: '+JSON.stringify(samples.samples[i]));
