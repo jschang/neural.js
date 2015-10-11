@@ -131,7 +131,7 @@ var tests = {
     
     net.log = function() {};
     
-    var lo = -1.0, hi = 1.0;
+    var lo = 0, hi = 1.0;
     var rawData = [
         {input1:hi,input2:hi,output:lo}
         ,{input1:lo,input2:hi,output:hi}
@@ -152,6 +152,7 @@ var tests = {
     var newRate = rate(runs,runsSinceLast);
     do {
         
+        // make a copy of the network
         var clonedNet = net.cloneAll();
         if(false) {
             console.log('ORIGINAL');
@@ -160,6 +161,7 @@ var tests = {
             console.log(clonedNet.dataOnly());
         }
         
+        // do a training run
         while( (thisSample = samples.next()) != null ) {
             var runData = clonedNet.forward(thisSample);
             var trainData = clonedNet.trainData(runData);
@@ -170,17 +172,21 @@ var tests = {
         }
         samples.reset();
         
-        totalMse = 0; sampleCount = 0;
+        // evaluate what we just did
+        totalMse = 0.0; sampleCount = 0.0;
         while( (thisSample = samples.next()) != null ) {
             var runData = clonedNet.forward(thisSample);
             var trainData = clonedNet.trainData(runData);
-            totalMse += trainData.mse();
-            sampleCount += 1;
+            totalMse += Math.pow(trainData.mse(),.5);
+            sampleCount += 1.0;
         }
-        totalMse = totalMse / sampleCount;
         samples.reset();
-        console.log(runs+" Total Error: "+totalMse);
+        
+        totalMse = totalMse / sampleCount;
+        // if the totalMse is less than the lastTotalMse
         if(lastTotalMse===null || totalMse<lastTotalMse) {
+            // then overwrite the original network data with the recently trained
+            console.log(runs+" Total Error: "+totalMse);
             net.copyFrom(clonedNet);
             lastTotalMse = totalMse;
             runsSinceLast = 0;
@@ -189,7 +195,7 @@ var tests = {
             runsSinceLast++;
         }
         runs++;
-    } while( runs!=10000 );
+    } while( runs!=100000 );
     for(var i = 0; i<samples.samples.length; i++ ) {
         var runData = net.forward(samples.samples[i]);
         console.log('sample: '+JSON.stringify(samples.samples[i]));
