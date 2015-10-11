@@ -131,7 +131,7 @@ var tests = {
     
     net.log = function() {};
     
-    var lo = 0, hi = 1.0;
+    var lo = .1, hi = .9;
     var rawData = [
         {input1:hi,input2:hi,output:lo}
         ,{input1:lo,input2:hi,output:hi}
@@ -184,6 +184,7 @@ var tests = {
         
         totalMse = totalMse / sampleCount;
         // if the totalMse is less than the lastTotalMse
+        console.log(runs+" Total Error: "+totalMse);
         if(lastTotalMse===null || totalMse<lastTotalMse) {
             // then overwrite the original network data with the recently trained
             console.log(runs+" Total Error: "+totalMse);
@@ -195,7 +196,7 @@ var tests = {
             runsSinceLast++;
         }
         runs++;
-    } while( runs!=100 );
+    } while( runs!=100000 );
     for(var i = 0; i<samples.samples.length; i++ ) {
         var runData = net.forward(samples.samples[i]);
         console.log('sample: '+JSON.stringify(samples.samples[i]));
