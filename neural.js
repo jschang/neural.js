@@ -176,14 +176,19 @@ var neuraljs = exports.neuraljs = {
                     // iterate over the synapses
                     for(idS in inputs) {
                         var s = inputs[idS];
+                        
                         var thisVal = s[weightKey] * runData.activations[ s[sKey].id ];
-                        this.log("neuron activate("+weightKey+") - synapse " + s.id + " " + s.str(weightKey) + " " + s[weightKey] + " * " + runData.activations[s[sKey].id] + " = " + thisVal);
+                        this.log("neuron activate("+weightKey+") - synapse " + s.str(weightKey) 
+                            + " thisVal:" + thisVal + " = "
+                            + "wgt:" + s[weightKey] + " * act("+s[sKey].id+"):" + runData.activations[s[sKey].id]);
+                        
                         sum += thisVal;
                     }
                     this.log('neuron activate('+weightKey+') - ' + this.id + " activation sum = " + sum);
                     // set the activation for this 
                     runData.activations[this.id] = this.activator.calculate(sum) - this[thresholdKey];
-                    this.log('neuron activate('+weightKey+') - ' + this.id + " "+this.activator.calculate(sum)+" - "+this[thresholdKey]+" = activation = " + runData.activations[this.id]);
+                    this.log('neuron activate('+weightKey+') - ' + this.id + " act:" + runData.activations[this.id] + ' = '
+                        +'act('+sum+"):"+this.activator.calculate(sum)+" - thresh:"+this[thresholdKey]);
                     return $N.utils.assertNumber(runData.activations[this.id]);
                 },
                 // when forward weights, error is calculated from output to input
@@ -207,14 +212,18 @@ var neuraljs = exports.neuraljs = {
                         sum += thisVal;
                     }
                     this.log("neuron error("+weightKey+") - " + this.id + " error sum = " + sum);
+                    
                     // set the error for this 
                     trainData.errors[this.id] = this.activator.derivative(this.activator.inverse(
                             runData.activations[this.id] + this[threshKey]
                         )) * sum;
+                    
                     this.log("neuron error("+weightKey+") - "+this.id+' '
+                        +'error:' +trainData.errors[this.id]+' = '
                         +'activ.deriv(activ.inv('
                         +'act:'+runData.activations[this.id]+' + thresh:' + this[threshKey] + ')) '
-                        +'* sum:'+sum+' = error:' +trainData.errors[this.id]);
+                        +'* sum:'+sum);
+                    
                     return $N.utils.assertNumber(trainData.errors[this.id]);
                 },
                 // when adjusting forward weights, run from input to output
@@ -227,8 +236,14 @@ var neuraljs = exports.neuraljs = {
                     for(idS in inputs) {
                         var s = inputs[idS];
                         var old = s[weightKey];
-                        s[weightKey] = $N.utils.assertNumber(old + (trainData.errors[this.id] * runData.activations[this.id] * trainData.rate));
-                        this.log('neuron weights('+weightKey+') - synapse '+idS+' '+s.str(weightKey)+' weight: '+old+' = '+s[weightKey]+' + ('+trainData.errors[this.id]+' * '+runData.activations[this.id]+' * '+trainData.rate+')');
+                        
+                        s[weightKey] = $N.utils.assertNumber(
+                            old + (trainData.errors[this.id] * runData.activations[this.id] * trainData.rate)
+                        );
+                        
+                        this.log('neuron weights('+weightKey+') - synapse '+s.str(weightKey)
+                            +' weight:'+s[weightKey]+' = '
+                            +old+' + ('+trainData.errors[this.id]+' * '+runData.activations[this.id]+' * '+trainData.rate+')');
                     }
                 },
                 thresholds:function(weightKey,trainData) {
@@ -238,10 +253,14 @@ var neuraljs = exports.neuraljs = {
                     var thresholdKey = weightKey=='forwardWeight'?'forwardThreshold':'backwardThreshold';
                     this.log('neuron thresholds('+weightKey+') - '+this.id+' update threshold; '+thresholdKey);
                     var old = this[thresholdKey];
-                    this[thresholdKey] = $N.utils.assertNumber(old + (trainData.errors[this.id] * runData.activations[this.id] * trainData.rate));
+                    
+                    this[thresholdKey] = $N.utils.assertNumber(
+                        old + (trainData.errors[this.id] * runData.activations[this.id] * trainData.rate)
+                    );
+                    
                     this.log('neuron thresholds('+weightKey+') - '+this.id
                         +' thres:'+this[thresholdKey]+' = '
-                        +old+' - (err:'+trainData.errors[this.id]+' * act:'+runData.activations[this.id]+' * rate:'+trainData.rate+')')
+                        +old+' + (err:'+trainData.errors[this.id]+' * act:'+runData.activations[this.id]+' * rate:'+trainData.rate+')')
                 },
                 activator:neuraljs.defaults.activator,
                 log:function(msg) { this.network.log(msg); }

@@ -124,14 +124,22 @@ var tests = {
 },
 'trainingXOR':function() {
     var net = utils.net();
+    var output = net.neuron();
+    net.synapse(net.output,output);
+    net.synapse(net.drain,output);
+    net.output = output;
     net.log = function() {};
+    var lo = -.5, hi = .5;
     var rawData = [
-        {input1:0.90,input2:0.90,output:-0.90,drain:0.00}
-        ,{input1:-0.90,input2:0.90,output:0.90,drain:0.00}
-        ,{input1:0.90,input2:-0.90,output:0.90,drain:0.00}
-        ,{input1:-0.90,input2:-0.90,output:-0.90,drain:0.00}
+        {input1:hi,input2:hi,output:lo}
+        ,{input1:lo,input2:hi,output:hi}
+        ,{input1:hi,input2:lo,output:hi}
+        ,{input1:lo,input2:lo,output:lo}
     ];
     var samples = utils.sampler(net,rawData,'shuffler');
+    for(var i=0; i<samples.samples.length; i++) {
+        delete(samples.samples[i][net.drain.id]);
+    }
     var thisSample;
     var totalMse, sampleCount, runs=0, lastTotalMse = null, runsSinceLast = 0;
     var rate = function(runsTotal,runsSinceLast) {
@@ -143,11 +151,12 @@ var tests = {
     do {
         
         var clonedNet = net.cloneAll();
-        /*console.log('ORIGINAL');
-        console.log(net.dataOnly());
-        console.log('CLONE');
-        console.log(clonedNet.dataOnly());
-        */
+        if(false) {
+            console.log('ORIGINAL');
+            console.log(net.dataOnly());
+            console.log('CLONE');
+            console.log(clonedNet.dataOnly());
+        }
         
         while( (thisSample = samples.next()) != null ) {
             var runData = clonedNet.forward(thisSample);
@@ -180,11 +189,16 @@ var tests = {
         }
         runs++;
     } while( runs!=10000 );
-    $N.utils.assertTrue($N.utils.closeTo(totalMse,1501.6790799162063));
+    for(var i = 0; i<samples.samples.length; i++ ) {
+        var runData = net.forward(samples.samples[i]);
+        console.log('sample: '+JSON.stringify(samples.samples[i]));
+        console.log('output: '+runData.activations[net.output.id]);
+    }
+    
 }};
 
 try {
-    tests['everythingForward']();
+    //tests['everythingForward']();
     tests['trainingXOR']();
 } catch(e) {
     console.log(e.msg);
