@@ -277,8 +277,7 @@ var neuraljs = exports.neuraljs = {
                     
                     this[thresholdKey] = $N.utils.assertNumber(
                         old + (
-                            runData.activations[this.id]
-                            * trainData.errors[this.id]
+                            trainData.errors[this.id]
                             * trainData.rate
                         )
                     );
@@ -286,8 +285,7 @@ var neuraljs = exports.neuraljs = {
                     this.log('neuron weights('+weightKey+') - neuron '+this.id
                             +' new:'+this[thresholdKey]+' = '
                             +'old:'+old+' + '+'( '
-                                +'act:'+this.id+':'+runData.activations[this.id]
-                                +' * err:'+trainData.errors[this.id] 
+                                +' err:'+trainData.errors[this.id] 
                                 +' * rate:'+trainData.rate
                             )
                 },
@@ -498,20 +496,16 @@ var neuraljs = exports.neuraljs = {
                     +'err:'+trainData.errors[n.id]+' = '
                     +'(desired:'+desired+" - actual:"+actual+')');
                 
-                /*
                 var oldThresh = n[threshKey];
                 n[threshKey] = n[threshKey] + ( 
-                        n[threshKey] 
-                        * trainData.errors[n.id] 
+                        trainData.errors[n.id] 
                         * trainData.rate 
-                        * n.activator.derivative(n[threshKey])
                     );
                 
                 this.log('network trainData('+weightKey+') - end layer new thresh for ' + idN + " "
                     +'thresh:'+n[threshKey]+' = '
                     +'thresh:'+oldThresh+' + '
-                    +'(thresh:'+oldThresh+" * err:"+trainData.errors[n.id]+' * rate:'+trainData.rate+')');
-                */
+                    +'(err:"+trainData.errors[n.id]+' * rate:'+trainData.rate+')');
             }
         }
         o.trainData = function(runData) {
