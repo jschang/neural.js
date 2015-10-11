@@ -28,8 +28,9 @@ var utils = {
         }
         return net;
     },
-    'sampler':function(net,rawData) {
-        var ret = net.sampler('iterator');
+    'sampler':function(net,rawData,sampler) {
+        var s = typeof(sampler)!='undefined'?sampler:'iterator';
+        var ret = net.sampler(s);
         for(var i=0; i<rawData.length; i++) {
             var o = {};
             o[net.input1.id] = rawData[i].input1;
@@ -46,6 +47,7 @@ var tests = {
     // create network
     var net = utils.net();
     net.log = function(m) {};
+    //console.log(net.dataOnly());
     
     var rawData = [
         {input1:0.10,input2:0.20,output:0.30,drain:0.40},
@@ -99,7 +101,7 @@ var tests = {
     net.thresholds('forwardWeight',trainData);
     
     var thisSample;
-    var totalMse, sampleCount, runs=0;
+    var lastTotalMse = null, totalMse = null, sampleCount, runs=0;
     do {
         totalMse = 0; sampleCount = 0;
         while( (thisSample = samples.next()) != null ) {
@@ -122,18 +124,69 @@ var tests = {
 },
 'trainingXOR':function() {
     var net = utils.net();
-    
+    net.log = function() {};
     var rawData = [
-        {input1:0.90,input2:0.90,output:0.10,drain:0.10}
-        ,{input1:0.10,input2:0.90,output:0.90,drain:0.10}
-        ,{input1:0.90,input2:0.10,output:0.90,drain:0.10}
-        ,{input1:0.10,input2:0.10,output:0.10,drain:0.10}
+        {input1:0.90,input2:0.90,output:-0.90,drain:0.00}
+        ,{input1:-0.90,input2:0.90,output:0.90,drain:0.00}
+        ,{input1:0.90,input2:-0.90,output:0.90,drain:0.00}
+        ,{input1:-0.90,input2:-0.90,output:-0.90,drain:0.00}
     ];
-    var samples = utils.sampler(net,rawData);
-    console.log(samples);
-    var runData = net.forward(samples.samples[0]);
-    console.log(runData);
+    var samples = utils.sampler(net,rawData,'shuffler');
+    var thisSample;
+    var totalMse, sampleCount, runs=0, lastTotalMse = null, runsSinceLast = 0;
+    var rate = function(runsTotal,runsSinceLast) {
+        var nr = runsSinceLast > 100 && runs % 10 == 0? Math.random() : .02;
+        //console.log('new rate:'+nr);
+        return nr;
+    }
+    var newRate = rate(runs,runsSinceLast);
+    do {
+        
+        var clonedNet = net.cloneAll();
+        /*console.log('ORIGINAL');
+        console.log(net.dataOnly());
+        console.log('CLONE');
+        console.log(clonedNet.dataOnly());
+        */
+        
+        while( (thisSample = samples.next()) != null ) {
+            var runData = clonedNet.forward(thisSample);
+            var trainData = clonedNet.trainData(runData);
+            trainData.rate = newRate;
+            clonedNet.backwardPropError(trainData);
+            clonedNet.weights('forwardWeight',trainData);
+            clonedNet.thresholds('forwardWeight',trainData);
+        }
+        samples.reset();
+        
+        totalMse = 0; sampleCount = 0;
+        while( (thisSample = samples.next()) != null ) {
+            var runData = clonedNet.forward(thisSample);
+            var trainData = clonedNet.trainData(runData);
+            totalMse += trainData.mse();
+            sampleCount += 1;
+        }
+        totalMse = totalMse / sampleCount;
+        samples.reset();
+
+        if(lastTotalMse===null || totalMse<lastTotalMse) {
+            console.log(runs+" Total MSE: "+totalMse);
+            net.copyFrom(clonedNet);
+            lastTotalMse = totalMse;
+            runsSinceLast = 0;
+        } else {
+            newRate = rate(runs,runsSinceLast);
+            runsSinceLast++;
+        }
+        runs++;
+    } while( runs!=10000 );
+    $N.utils.assertTrue($N.utils.closeTo(totalMse,1501.6790799162063));
 }};
 
-tests['everythingForward']();
-//tests['trainingXOR']();
+try {
+    tests['everythingForward']();
+    tests['trainingXOR']();
+} catch(e) {
+    console.log(e.msg);
+    console.log(e.stack);
+}
