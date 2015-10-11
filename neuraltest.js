@@ -128,8 +128,10 @@ var tests = {
     net.synapse(net.output,output);
     net.synapse(net.drain,output);
     net.output = output;
+    
     net.log = function() {};
-    var lo = -.5, hi = .5;
+    
+    var lo = -1.0, hi = 1.0;
     var rawData = [
         {input1:hi,input2:hi,output:lo}
         ,{input1:lo,input2:hi,output:hi}
@@ -143,7 +145,7 @@ var tests = {
     var thisSample;
     var totalMse, sampleCount, runs=0, lastTotalMse = null, runsSinceLast = 0;
     var rate = function(runsTotal,runsSinceLast) {
-        var nr = runsSinceLast > 100 && runs % 10 == 0? Math.random() : .02;
+        var nr = .05;//runsSinceLast > 100 && runs % 10 == 0? Math.random() : .02;
         //console.log('new rate:'+nr);
         return nr;
     }
@@ -177,9 +179,8 @@ var tests = {
         }
         totalMse = totalMse / sampleCount;
         samples.reset();
-
+        console.log(runs+" Total Error: "+totalMse);
         if(lastTotalMse===null || totalMse<lastTotalMse) {
-            console.log(runs+" Total MSE: "+totalMse);
             net.copyFrom(clonedNet);
             lastTotalMse = totalMse;
             runsSinceLast = 0;
