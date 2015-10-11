@@ -286,7 +286,7 @@ var neuraljs = exports.neuraljs = {
                             +' new:'+this[thresholdKey]+' = '
                             +'old:'+old+' + '+'( '
                                 +' err:'+trainData.errors[this.id] 
-                                +' * rate:'+trainData.rate
+                                +' * rate:'+trainData.rate+')'
                             )
                 },
                 activator:neuraljs.defaults.activator,
@@ -505,7 +505,7 @@ var neuraljs = exports.neuraljs = {
                 this.log('network trainData('+weightKey+') - end layer new thresh for ' + idN + " "
                     +'thresh:'+n[threshKey]+' = '
                     +'thresh:'+oldThresh+' + '
-                    +'(err:"+trainData.errors[n.id]+' * rate:'+trainData.rate+')');
+                    +'(err:'+trainData.errors[n.id]+' * rate:'+trainData.rate+')');
             }
         }
         o.trainData = function(runData) {
