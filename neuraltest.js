@@ -117,8 +117,6 @@ var tests = {
     } while( runs!=258 );
     $N.utils.assertTrue($N.utils.closeTo(totalMse,0.011045160132405677));
 },
-'everythingBackward':function() {
-},
 'trainingXOR':function() {
     var net = utils.net();
     var output = net.neuron();
@@ -137,13 +135,40 @@ var tests = {
     for(var i=0; i<samples.samples.length; i++) {
         delete(samples.samples[i][net.drain.id]);
     }
-    net.train(samples);
+    $N.utils.assertTrue(net.train(samples));
     for(var i = 0; i<samples.samples.length; i++ ) {
         var runData = net.forward(samples.samples[i]);
         console.log('sample: '+JSON.stringify(samples.samples[i]));
         console.log('output: '+runData.activations[net.output.id]);
     }
-}};
+},
+'validatePreserveNetworkWithGeneratedSample':function() {
+    // tests the theory that a randomized sample set
+    // run through a feed forward network, 
+    // to generate sample set outputs,
+    // and then used as the supplementary sample data,
+    // when adding a new sample to the training set,
+    // will preserve the original data in the network
+},
+'validateComparativeFunction':function() {
+    // validate that a network can be trained,
+    // with 2 inputs and 1 output
+    // such that when the 2 inputs are within a threshold delta from
+    // then activation on the output is high,
+    // else the activation of the output is low
+},
+'validateTimeSeries':function() {
+    // when each input represents a discrete event
+    // and the input value is allowed to degrade over time
+    // can the output represent another discrete event?
+    // for example, if my inputs represent each letter of the alphabet
+    // and the outputs represent the known dictionary words
+    // then can an input of {"a":0.6,"e":1.0,"l":0.9,"p":0.8} yield the output "apple"?
+    // "a" is the first, so more decayed
+    // "p" is repeated twice, thus it's distance from "a"
+    // "e" is experienced last, thus the most fresh activation
+}
+};
 
 try {
     tests['everythingForward']();
