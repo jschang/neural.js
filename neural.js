@@ -122,8 +122,18 @@ var neuraljs = exports.neuraljs = {
     completers:{
         regular:function(threshold) {
             return function() {
-                if(this.totalMse < threshold || ''+this.totalMse=='NaN')
+                if(''+this.totalMse=='NaN') {
+                    this.achievedConvergence = false;
                     return true;
+                }
+                if(this.runs>20000) {
+                    this.achievedConvergence = false;
+                    return true;
+                }
+                if(this.totalMse < threshold) {
+                    this.achievedConvergence = true;
+                    return true;
+                }
                 return false;
             }
         }
@@ -132,7 +142,7 @@ var neuraljs = exports.neuraljs = {
         regular:function() {
             return {
                 complete:$N.completers.regular(.05),
-                gradient:$N.gradients.constant(.2),
+                gradient:$N.gradients.constant(.05),
                 accept:$N.acceptors.regular(),
                 train:function() {
                     
@@ -154,12 +164,16 @@ var neuraljs = exports.neuraljs = {
                         
                         // do a training run
                         while( (thisSample = samples.next()) != null ) {
+                            
                             net.log("Sample:"+JSON.stringify(thisSample));
+                            
                             var thisRunData = clonedNet[weightKey=='forwardWeight'?'forward':'backward'](thisSample);
+                            
                             var thisTrainData = clonedNet.trainData(thisRunData);
                             thisTrainData.weightKey = this.weightKey;
                             thisTrainData.thresholdKey = this.thresholdKey;
                             thisTrainData.rate = newRate;
+                            
                             clonedNet[weightKey=='forwardWeight'?'backwardPropError':'forwardPropError'](thisTrainData);
                             clonedNet.weights(weightKey,thisTrainData);
                             clonedNet.thresholds(weightKey,thisTrainData);
@@ -170,10 +184,13 @@ var neuraljs = exports.neuraljs = {
                         this.totalMse = 0.0; 
                         this.sampleCount = 0.0;
                         while( (this.thisSample = samples.next()) != null ) {
+                            
                             var thisRunData = clonedNet[weightKey=='forwardWeight'?'forward':'backward'](this.thisSample);
+                            
                             var thisTrainData = clonedNet.trainData(thisRunData);
                             thisTrainData.weightKey = this.weightKey;
                             thisTrainData.thresholdKey = this.thresholdKey;
+                            
                             this.totalMse += Math.pow(thisTrainData.mse(),.5);
                             this.sampleCount += 1.0;
                         }
@@ -186,10 +203,10 @@ var neuraljs = exports.neuraljs = {
                             // then overwrite the original network data with the recently trained
                             net.copyFrom(clonedNet);
                             this.lastTotalMse = this.totalMse;
-                            this.runsSinceLast = 0;
+                            this.runsSinceLastAccept = 0;
                         } else {
                             newRate = this.network.trainer.gradient.apply(this);
-                            this.runsSinceLast++;
+                            this.runsSinceLastAccept++;
                         }
                         this.runs++;
                         if(this.runs%1000==0) {
@@ -570,12 +587,19 @@ var neuraljs = exports.neuraljs = {
             var net = this;
             var trainData = {
                 
+                /* transient training data */
+                // the sample being evaluated
                 thisSample:null,
+                // the totalMse of this candidate
                 totalMse:0, 
-                sampleCount:0, 
-                runs:0, 
-                lastTotalMse:null, 
-                runsSinceLast:0,
+                sampleCount:0,
+                // the current lowest mse
+                lastTotalMse:null,
+                runs:0,
+                // the number of runs since last accepted candidate clone
+                runsSinceLastAccept:0,
+                // whether the training run ultimately was successful
+                achievedConvergence:false, 
                 
                 network:net,
                 runData:runData,
@@ -607,13 +631,15 @@ var neuraljs = exports.neuraljs = {
             return trainData;
         }
         o.train = function(samples) {
-            var trainData = this.trainData();
+            var clonedNet = this.cloneAll();
+            var trainData = clonedNet.trainData();
             trainData.samples = samples;
-            this.trainer.train.apply(trainData);
-            //var trainData = this.trainData();
-            //trainData.weightKey = 'backwardWeight';
-            //trainData.thresholdKey = 'backwardThreshold';
-            //this.trainer.train.apply(trainData);
+            clonedNet.trainer.train.apply(trainData);
+            if(trainData.achievedConvergence) {
+                this.copyFrom(clonedNet);
+                return true;
+            }
+            return false;
         }
         o.sampler = function(name, args) {
             return $N.samplers[name].apply($N.samplers,args);
