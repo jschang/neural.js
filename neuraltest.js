@@ -131,7 +131,7 @@ var tests = {
     
     net.log = function() {};
     
-    var lo = .1, hi = .9;
+    var lo = -1, hi = 1;
     var rawData = [
         {input1:hi,input2:hi,output:lo}
         ,{input1:lo,input2:hi,output:hi}
@@ -145,7 +145,7 @@ var tests = {
     var thisSample;
     var totalMse, sampleCount, runs=0, lastTotalMse = null, runsSinceLast = 0;
     var rate = function(runsTotal,runsSinceLast) {
-        var nr = .05;//runsSinceLast > 100 && runs % 10 == 0? Math.random() : .02;
+        var nr = .20;//runsSinceLast > 100 && runs % 10 == 0? Math.random() : .02;
         //console.log('new rate:'+nr);
         return nr;
     }
@@ -169,6 +169,12 @@ var tests = {
             clonedNet.backwardPropError(trainData);
             clonedNet.weights('forwardWeight',trainData);
             clonedNet.thresholds('forwardWeight',trainData);
+            /*
+            console.log("+================================");
+            console.log(thisSample);
+            console.log(runData.activations);
+            console.log(trainData.errors);
+            */
         }
         samples.reset();
         
@@ -196,7 +202,7 @@ var tests = {
             runsSinceLast++;
         }
         runs++;
-    } while( runs!=100000 );
+    } while( runs!=1000 );
     for(var i = 0; i<samples.samples.length; i++ ) {
         var runData = net.forward(samples.samples[i]);
         console.log('sample: '+JSON.stringify(samples.samples[i]));

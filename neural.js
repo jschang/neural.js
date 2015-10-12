@@ -228,17 +228,19 @@ var neuraljs = exports.neuraljs = {
                     var inputs  = weightKey=='forwardWeight'?this.inputs :this.outputs;
                     var outputs = weightKey=='forwardWeight'?this.outputs:this.inputs;
                     var sKey    = weightKey=='forwardWeight'?'input':'output';
+                    
                     this.log('neuron weights('+weightKey+') - '+this.id+' update weight; '+weightKey);
+                    
                     for(idS in inputs) {
                         var s = inputs[idS];
-                        var old = s[weightKey];
                         var sN = this.network.neurons[s[sKey].id];
                         
+                        var old = s[weightKey];
                         s[weightKey] = $N.utils.assertNumber(
-                            old - (
+                            s[weightKey] + (
                                 this.activator.derivative(runData.sums[this.id])
-                                * runData.activations[this.id]
-                                * trainData.errors[sN.id] 
+                                * runData.activations[sN.id]
+                                * trainData.errors[this.id] 
                                 * trainData.rate
                             )
                         );
@@ -249,13 +251,13 @@ var neuraljs = exports.neuraljs = {
                     var inputs  = weightKey=='forwardWeight'?this.inputs :this.outputs;
                     var outputs = weightKey=='forwardWeight'?this.outputs:this.inputs;
                     var thresholdKey = weightKey=='forwardWeight'?'forwardThreshold':'backwardThreshold';
-                    this.log('neuron thresholds('+weightKey+') - '+this.id+' update threshold; '+thresholdKey);
-                    var old = this[thresholdKey];
                     
+                    this.log('neuron thresholds('+weightKey+') - '+this.id+' update threshold; '+thresholdKey);
+                    
+                    var old = this[thresholdKey];
                     this[thresholdKey] = $N.utils.assertNumber(
-                        old + (
-                            this.activator.derivative(runData.sums[this.id]) 
-                            * runData.activations[this.id]
+                        this[thresholdKey] + (
+                            this.activator.derivative(runData.sums[this.id])
                             * trainData.errors[this.id]
                             * trainData.rate
                         )
@@ -266,6 +268,29 @@ var neuraljs = exports.neuraljs = {
             };
             this.add(n);
             return n;
+        }
+        o.endLayerError = function(trainData) {
+            var runData = trainData.runData;
+            var weightKey = trainData.weightKey;
+            // when adjusting the forward weights, we travel backwards from
+            // the outputs...forward from the inputs when adjusting backward weights
+            var endNeurons = this[weightKey=='forwardWeight'?'getOutputs':'getInputs']();
+            var threshKey = weightKey=='forwardWeight'?'forwardThreshold':'backwardThreshold';
+            // populate the error at the end points
+            for(idN in endNeurons) {
+                var n = endNeurons[idN];
+                var actual = runData.activations[n.id];
+                var desired = runData.sample[n.id];
+                
+                trainData.errors[n.id] = desired - actual;
+
+                var oldThresh = n[threshKey];
+                n[threshKey] = n[threshKey] + ( 
+                        n.activator.derivative(runData.sums[n.id])
+                        * trainData.errors[n.id] 
+                        * trainData.rate 
+                    );
+            }
         }
         o.getOutputs = function() {
             var outputs = {};
@@ -452,37 +477,6 @@ var neuraljs = exports.neuraljs = {
             this.endLayerError(trainData);
             return this._error('backwardWeight',trainData);
         }
-        o.endLayerError = function(trainData) {
-            var runData = trainData.runData;
-            var weightKey = trainData.weightKey;
-            // when adjusting the forward weights, we travel backwards from
-            // the outputs...forward from the inputs when adjusting backward weights
-            var endNeurons = this[weightKey=='forwardWeight'?'getOutputs':'getInputs']();
-            var threshKey = weightKey=='forwardWeight'?'forwardThreshold':'backwardThreshold';
-            // populate the error at the end points
-            for(idN in endNeurons) {
-                var n = endNeurons[idN];
-                var actual = runData.activations[n.id];
-                var desired = runData.sample[n.id];
-                
-                trainData.errors[n.id] = n.activator.derivative(actual) * (desired-actual);
-                
-                this.log('network trainData('+weightKey+') - end layer error for ' + idN + " "
-                    +'err:'+trainData.errors[n.id]+' = '
-                    +'(actual:'+actual+' - desired:'+desired+')');
-                
-                var oldThresh = n[threshKey];
-                n[threshKey] = n[threshKey] + ( 
-                        trainData.errors[n.id] 
-                        * trainData.rate 
-                    );
-                
-                this.log('network trainData('+weightKey+') - end layer new thresh for ' + idN + " "
-                    +'thresh:'+n[threshKey]+' = '
-                    +'thresh:'+oldThresh+' + '
-                    +'(err:'+trainData.errors[n.id]+' * rate:'+trainData.rate+')');
-            }
-        }
         o.trainData = function(runData) {
             var net = this;
             var trainData = {
@@ -616,7 +610,7 @@ var neuraljs = exports.neuraljs = {
 };
 
 module.extend(exports.neuraljs.defaults,{
-    activator:neuraljs.activators.sigmoid
+    activator:neuraljs.activators.tanh
 });
 
 var $N = exports.$N = neuraljs;
