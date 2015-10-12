@@ -128,9 +128,7 @@ var tests = {
     net.synapse(net.output,output);
     net.synapse(net.drain,output);
     net.output = output;
-    
     net.log = function() {};
-    
     var lo = 0.0, hi = 1.0;
     var rawData = [
         {input1:hi,input2:hi,output:lo}
@@ -142,72 +140,12 @@ var tests = {
     for(var i=0; i<samples.samples.length; i++) {
         delete(samples.samples[i][net.drain.id]);
     }
-    var thisSample;
-    var totalMse, sampleCount, runs=0, lastTotalMse = null, runsSinceLast = 0;
-    var rate = function(runsTotal,runsSinceLast) {
-        var nr = .05;//runsSinceLast > 100 && runs % 10 == 0? Math.random() : .02;
-        //console.log('new rate:'+nr);
-        return nr;
-    }
-    var newRate = rate(runs,runsSinceLast);
-    do {
-        
-        // make a copy of the network
-        var clonedNet = net.cloneAll();
-        if(false) {
-            console.log('ORIGINAL');
-            console.log(net.dataOnly());
-            console.log('CLONE');
-            console.log(clonedNet.dataOnly());
-        }
-        
-        // do a training run
-        while( (thisSample = samples.next()) != null ) {
-            var runData = clonedNet.forward(thisSample);
-            var trainData = clonedNet.trainData(runData);
-            trainData.rate = newRate;
-            clonedNet.backwardPropError(trainData);
-            clonedNet.weights('forwardWeight',trainData);
-            clonedNet.thresholds('forwardWeight',trainData);
-            /*
-            console.log("+================================");
-            console.log(thisSample);
-            console.log(runData.activations);
-            console.log(trainData.errors);
-            */
-        }
-        samples.reset();
-        
-        // evaluate what we just did
-        totalMse = 0.0; sampleCount = 0.0;
-        while( (thisSample = samples.next()) != null ) {
-            var runData = clonedNet.forward(thisSample);
-            var trainData = clonedNet.trainData(runData);
-            totalMse += Math.pow(trainData.mse(),.5);
-            sampleCount += 1.0;
-        }
-        samples.reset();
-        
-        totalMse = totalMse / sampleCount;
-        // if the totalMse is less than the lastTotalMse
-        if(lastTotalMse===null || totalMse<lastTotalMse) {
-            // then overwrite the original network data with the recently trained
-            console.log(runs+" Total Error: "+totalMse);
-            net.copyFrom(clonedNet);
-            lastTotalMse = totalMse;
-            runsSinceLast = 0;
-        } else {
-            newRate = rate(runs,runsSinceLast);
-            runsSinceLast++;
-        }
-        runs++;
-    } while( runs!=10000 );
+    net.train(samples);
     for(var i = 0; i<samples.samples.length; i++ ) {
         var runData = net.forward(samples.samples[i]);
         console.log('sample: '+JSON.stringify(samples.samples[i]));
         console.log('output: '+runData.activations[net.output.id]);
     }
-    
 }};
 
 try {

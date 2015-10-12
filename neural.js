@@ -105,6 +105,102 @@ var neuraljs = exports.neuraljs = {
         why not train backwards and forwards?
         */
     },
+    acceptors:{
+        regular:function() {
+            return function() { 
+                return this.lastTotalMse===null || this.totalMse < this.lastTotalMse;
+            }
+        }
+    },
+    gradients:{
+        constant:function(constRate) {
+            return function() {
+                return constRate;
+            };
+        }
+    },
+    completers:{
+        regular:function(threshold) {
+            return function() {
+                if(this.totalMse < threshold || ''+this.totalMse=='NaN')
+                    return true;
+                return false;
+            }
+        }
+    },
+    trainers:{
+        regular:function() {
+            return {
+                complete:$N.completers.regular(.05),
+                gradient:$N.gradients.constant(.2),
+                accept:$N.acceptors.regular(),
+                train:function() {
+                    
+                    var net = this.network;
+                    var weightKey = this.weightKey;
+                    var newRate = this.network.trainer.gradient.apply(this);
+                    var samples = this.samples;
+                    
+                    do {
+                        
+                        // make a copy of the network
+                        var clonedNet = net.cloneAll();
+                        if(false) {
+                            console.log('ORIGINAL');
+                            console.log(net.dataOnly());
+                            console.log('CLONE');
+                            console.log(clonedNet.dataOnly());
+                        }
+                        
+                        // do a training run
+                        while( (thisSample = samples.next()) != null ) {
+                            net.log("Sample:"+JSON.stringify(thisSample));
+                            var thisRunData = clonedNet[weightKey=='forwardWeight'?'forward':'backward'](thisSample);
+                            var thisTrainData = clonedNet.trainData(thisRunData);
+                            thisTrainData.weightKey = this.weightKey;
+                            thisTrainData.thresholdKey = this.thresholdKey;
+                            thisTrainData.rate = newRate;
+                            clonedNet[weightKey=='forwardWeight'?'backwardPropError':'forwardPropError'](thisTrainData);
+                            clonedNet.weights(weightKey,thisTrainData);
+                            clonedNet.thresholds(weightKey,thisTrainData);
+                        }
+                        samples.reset();
+                        
+                        // evaluate what we just did
+                        this.totalMse = 0.0; 
+                        this.sampleCount = 0.0;
+                        while( (this.thisSample = samples.next()) != null ) {
+                            var thisRunData = clonedNet[weightKey=='forwardWeight'?'forward':'backward'](this.thisSample);
+                            var thisTrainData = clonedNet.trainData(thisRunData);
+                            thisTrainData.weightKey = this.weightKey;
+                            thisTrainData.thresholdKey = this.thresholdKey;
+                            this.totalMse += Math.pow(thisTrainData.mse(),.5);
+                            this.sampleCount += 1.0;
+                        }
+                        samples.reset();
+                        
+                        this.totalMse = this.totalMse / this.sampleCount;
+                        
+                        // if the totalMse is less than the lastTotalMse
+                        if( this.network.trainer.accept.apply(this) ) {
+                            // then overwrite the original network data with the recently trained
+                            net.copyFrom(clonedNet);
+                            this.lastTotalMse = this.totalMse;
+                            this.runsSinceLast = 0;
+                        } else {
+                            newRate = this.network.trainer.gradient.apply(this);
+                            this.runsSinceLast++;
+                        }
+                        this.runs++;
+                        if(this.runs%1000==0) {
+                            console.log(this.runs+" Total Error: "+this.totalMse);
+                        }
+                        
+                    } while( ! this.network.trainer.complete.apply(this) );
+                }
+            };
+        }
+    },
     samplers:{
         iterator:function() {
             var ret = {
@@ -140,7 +236,8 @@ var neuraljs = exports.neuraljs = {
         var o = {
             lastId:0,
             neurons:{}, // the neurons, including inputs, of this network
-            synapses:{} // connections between inputs and other neurons
+            synapses:{}, // connections between inputs and other neurons
+            trainer:$N.trainers.regular()
         };
         o.neuron = function(id) {
             var net = this;
@@ -472,6 +569,14 @@ var neuraljs = exports.neuraljs = {
         o.trainData = function(runData) {
             var net = this;
             var trainData = {
+                
+                thisSample:null,
+                totalMse:0, 
+                sampleCount:0, 
+                runs:0, 
+                lastTotalMse:null, 
+                runsSinceLast:0,
+                
                 network:net,
                 runData:runData,
                 // the by-id error of each neuron
@@ -487,6 +592,7 @@ var neuraljs = exports.neuraljs = {
                     next:function(){return null;},
                     reset:function(){}
                 },
+                
                 mse:function() {
                     var outputs = this.network[this.weightKey=='forwardWeight'?'getOutputs':'getInputs']();
                     var mse=0.0;
@@ -500,29 +606,14 @@ var neuraljs = exports.neuraljs = {
             };
             return trainData;
         }
-        o.train = function(sampleSource) {
-            var sample = null;
-            while(sample = sampleSource.next()) {
-                this.log(sample);
-                
-                this.log("+= TRAINING FORWARD =======");
-                var runData = this.forward(sample);
-                var trainData = this.trainData(runData);
-                this.backwardPropError(trainData);
-                this.weights('forwardWeight',trainData);
-                this.thresholds('forwardWeight',trainData);
-                this.log(trainData);
-                this.log(this.neurons);
-                
-                this.log("+= TRAINING BACKWARD =======");
-                var runData = this.backward(sample);
-                var trainData = this.trainData(runData);
-                this.forwardPropError(trainData);
-                this.weights('backwardWeight',trainData);
-                this.thresholds('backwardWeight',trainData);
-                this.log(trainData);
-                this.log(this.neurons);
-            }
+        o.train = function(samples) {
+            var trainData = this.trainData();
+            trainData.samples = samples;
+            this.trainer.train.apply(trainData);
+            //var trainData = this.trainData();
+            //trainData.weightKey = 'backwardWeight';
+            //trainData.thresholdKey = 'backwardThreshold';
+            //this.trainer.train.apply(trainData);
         }
         o.sampler = function(name, args) {
             return $N.samplers[name].apply($N.samplers,args);
