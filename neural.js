@@ -79,23 +79,15 @@ var neuraljs = exports.neuraljs = {
             derivative:function(x) {
                 //x = $N.utils.clamp(x,-.9999999999999999,.9999999999999999);
                 return 1.0 - Math.pow(this.calculate(x),2.0);
-            },
-            inverse:function(x) {
-                //x = $N.utils.clamp(x,-.9999999999999999,.9999999999999999);
-                return .5 * Math.log( (1.0+x)/(1.0-x),Math.E);
-            },
+            }
         },
         sigmoid:{
             calculate:function(x) {
                 //x = $N.utils.clamp(x,.0000000001,9999999999);
-                return 1.0 / 1 + Math.pow(Math.E,-x);
+                return 1.0 / ( 1.0 + Math.pow(Math.E,-x) );
             },
             derivative:function(x) {
-                return this.calculate(x) * (1 - this.calculate(x));
-            },
-            inverse:function(x) {
-                //x = $N.utils.clamp(x,.0000000001,9999999999);
-                return Math.log(x,Math.E) - Math.log(1.0-x,Math.E);
+                return this.calculate(x) * (1.0 - this.calculate(x));
             }
         }
         /*
