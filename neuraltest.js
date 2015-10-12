@@ -129,7 +129,7 @@ var tests = {
     net.synapse(net.drain,output);
     net.output = output;
     net.log = function() {};
-    var lo = 0.0, hi = 1.0;
+    var lo = -1, hi = 1;
     var rawData = [
         {input1:hi,input2:hi,output:lo}
         ,{input1:lo,input2:hi,output:hi}

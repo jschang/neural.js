@@ -719,7 +719,7 @@ var neuraljs = exports.neuraljs = {
 };
 
 module.extend(exports.neuraljs.defaults,{
-    activator:neuraljs.activators.sigmoid
+    activator:neuraljs.activators.tanh
 });
 
 var $N = exports.$N = neuraljs;
