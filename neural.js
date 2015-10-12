@@ -610,8 +610,6 @@ var neuraljs = exports.neuraljs = {
                 runData:runData,
                 // the by-id error of each neuron
                 errors:{},
-                // the slope of input value at each neuron
-                slopes:{},
                 weightKey:'forwardWeight',
                 thresholdKey:'forwardThreshold',
                 // the training rate

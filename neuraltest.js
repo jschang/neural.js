@@ -59,20 +59,20 @@ var tests = {
     // verify run forward result
     var runData = net.forward(samples.samples[0]);
     //console.log(runData);
-    $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.output.id],-0.430114109683571));
-    $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.drain.id],-0.5122537941317147));
+    $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.output.id],0.5153592780074097));
+    $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.drain.id],0.7113937318189625));
     $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.input1.id],.1));
     $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.input2.id],.2));
     var runData = net.forward(samples.samples[1]);
     //console.log(runData);
-    $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.output.id],-0.27397164772132904));
-    $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.drain.id],-0.11502011711927118));
+    $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.output.id],0.623065349572361));
+    $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.drain.id],0.8786921933686959));
     $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.input1.id],0.5));
     $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.input2.id],0.6));
     var runData = net.forward(samples.samples[2]);
     //console.log(runData);
-    $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.output.id],-0.4600213196888364));
-    $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.drain.id],-0.5805727014656141));
+    $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.output.id],0.49298796667532446));
+    $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.drain.id],0.6750698748386078));
     $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.input1.id],.1));
     $N.utils.assertTrue($N.utils.closeTo(runData.activations[net.input2.id],.1));
     
@@ -81,16 +81,13 @@ var tests = {
     net.backwardPropError(trainData);
     var expected = { 
             errors:{ 
-                '0': 0.5079727757128458,
-                '1': 0.6432089165979538,
-                '2': 0.730114109683571,
-                '3': 0.9122537941317147 
-            },
-            slopes: { 
-                '2': 0.99511596233468, 
-                '3': 0.9647513621820634 
-            },
+                '0': -0.17723279371022221,
+                '1': -0.2825833956754967,
+                '2': -0.21535927800740967,
+                '3': -0.31139373181896246 
+            }
         };
+    //console.log(trainData);
     for(var i in expected) {
         for(var k in expected[i]) {
             //console.log("checking expected["+i+"]["+k+"]==trainData["+i+"]["+k+"]");
@@ -118,7 +115,7 @@ var tests = {
         samples.reset();
         runs++;
     } while( runs!=258 );
-    $N.utils.assertTrue($N.utils.closeTo(totalMse,1501.6790799162063));
+    $N.utils.assertTrue($N.utils.closeTo(totalMse,0.011045160132405677));
 },
 'everythingBackward':function() {
 },
@@ -149,7 +146,7 @@ var tests = {
 }};
 
 try {
-    //tests['everythingForward']();
+    tests['everythingForward']();
     tests['trainingXOR']();
 } catch(e) {
     console.log(e.msg);
