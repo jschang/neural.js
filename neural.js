@@ -106,27 +106,28 @@ var neuraljs = exports.neuraljs = {
         */
     },
     acceptors:{
-        regular:function() {
+        simple:function() {
             return function() { 
-                return this.lastTotalMse===null || this.totalMse < this.lastTotalMse;
+                return this.lastTotalMse===null 
+                    || this.totalMse < this.lastTotalMse;
             }
         }
     },
     gradients:{
-        constant:function(constRate) {
+        simple:function(constRate) {
             return function() {
                 return constRate;
             };
         }
     },
     completers:{
-        regular:function(threshold) {
+        simple:function(threshold,bailCount) {
             return function() {
                 if(''+this.totalMse=='NaN') {
                     this.achievedConvergence = false;
                     return true;
                 }
-                if(this.runs>20000) {
+                if(this.runs>bailCount) {
                     this.achievedConvergence = false;
                     return true;
                 }
@@ -138,12 +139,16 @@ var neuraljs = exports.neuraljs = {
             }
         }
     },
+    /**
+     * Training object constructors
+     * Each training object function is applied against a trainingData object
+     */
     trainers:{
         regular:function() {
             return {
-                complete:$N.completers.regular(.05),
-                gradient:$N.gradients.constant(.05),
-                accept:$N.acceptors.regular(),
+                complete:$N.completers.simple(.05,20000),
+                gradient:$N.gradients.simple(.05),
+                accept:$N.acceptors.simple(),
                 train:function() {
                     
                     var net = this.network;
