@@ -46,8 +46,10 @@ var tests = {
 'everythingForward':function() {
     // create network
     var net = utils.net();
+    for(var id in net.neurons) {
+        net.neurons[id].activator = $N.activators.tanh;
+    }
     net.log = function(m) {};
-    //console.log(net.dataOnly());
     
     var rawData = [
         {input1:0.10,input2:0.20,output:0.30,drain:0.40},
@@ -115,15 +117,20 @@ var tests = {
         samples.reset();
         runs++;
     } while( runs!=258 );
-    $N.utils.assertTrue($N.utils.closeTo(totalMse,0.011045160132405677));
+    $N.utils.assertTrue($N.utils.closeTo(totalMse,0.0060510320644548725));
 },
 'trainingXOR':function() {
+    
     var net = utils.net();
     var output = net.neuron();
     net.synapse(net.output,output);
     net.synapse(net.drain,output);
     net.output = output;
+    for(var id in net.neurons) {
+        net.neurons[id].activator = $N.activators.tanh;
+    }
     net.log = function() {};
+    
     var lo = -1, hi = 1;
     var rawData = [
         {input1:hi,input2:hi,output:lo}
@@ -167,12 +174,107 @@ var tests = {
     // "a" is the first, so more decayed
     // "p" is repeated twice, thus it's distance from "a"
     // "e" is experienced last, thus the most fresh activation
+    var words = [
+        "apple",
+        "atrocity",
+        "banana",
+        "borogroves",
+        "butter",
+        "facetious",
+        "galaxy",
+        "harmony",
+        "mimsy",
+        "space",  
+        "taco",
+        "target",
+        "toast",
+        "tricky",
+        "philanthropy",
+        "phillistine",
+        "night","day","morning","evening","afternoon",
+        "one","two","three","four","five","six","seven","eight","nine","ten","zero"
+    ];
+    var network = $N.constructors.fullyConnected([26,13,words.length]);
+    for(var id in network.neurons) {
+        network.neurons[id].activator = $N.activators.sigmoid;
+    }
+    
+    // assign each input to a letter
+    var inputs = network.getInputs();
+    var letters = {};
+    var j=0;
+    var a = ("a".charCodeAt(0));
+    for(var id in inputs) {
+        letters[ String.fromCharCode( a + j ) ] = id;
+        j++;
+    }
+    console.log(letters);
+    
+    // associated each word to an output
+    var outputs = network.getOutputs();
+    var outputIds = {};
+    var i = 0;
+    for(var id in outputs) {
+        outputIds[words[i]] = id;
+        i++;
+        if(i>words.length) break;
+    }
+    console.log(outputIds);
+    var lo = 0.0;
+    var hi = 1.0;
+    console
+    
+    // generate and input/output sample for each word
+    var samples = [];
+    var samplesByWord = {};
+    for(var i=0; i<words.length; i++) {
+        
+        var thisSample = {};
+        
+        // zero out the sample
+        for(var id in inputs) {
+            thisSample[id] = lo;
+        }
+        for(var id in outputs) {
+            thisSample[id] = lo;
+        }
+        
+        var word = words[i];
+        
+        for(var j=0; j<word.length; j++) {
+            //console.log(word[j]);
+            // lower each by half
+            for(var id in inputs) {
+                if(thisSample[id]>lo) {
+                    thisSample[id] = .75 * thisSample[id];
+                }
+            }
+            // assign the letter input to hi
+            thisSample[ letters[ word[j] ] ] = hi;
+        }
+        thisSample[outputIds[word]] = hi;
+        samples.push(thisSample);
+        samplesByWord[word] = thisSample;
+        
+        console.log(word);
+        console.log(thisSample);
+    }
+    var sampler = network.sampler('shuffler');
+    sampler.samples = samples;
+    network.log = function(m) {};
+    var og = $N.defaults.gradient;
+    $N.defaults.gradient = $N.gradients.annealing(1.0,.05,10);
+    network.train(sampler);
+    $N.defaults.gradient = og;
+    var runData = network.forward(samplesByWord.harmony);
+    console.log(runData);
 }
 };
 
 try {
     tests['everythingForward']();
     tests['trainingXOR']();
+    tests['validateTimeSeries']();
 } catch(e) {
     console.log(e.msg);
     console.log(e.stack);

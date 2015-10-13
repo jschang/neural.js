@@ -118,6 +118,48 @@ var neuraljs = exports.neuraljs = {
             return function() {
                 return constRate;
             };
+        },
+        annealing:function(maxRate,minRate,bumpDist) {
+            var lastSuccessfulRate = null;
+            var lastRate = null;
+            return function() {
+                var logMe = function () {
+                    console.log('mnr:'+minRate+',mxr:'+maxRate+',lr:'+lastRate+',cr:'+this.currentRate+',lsr:'+lastSuccessfulRate);
+                }
+                if (lastRate==null) {
+                    lastSuccessfulRate = this.currentRate = maxRate;
+                    logMe.apply(this);
+                }
+                else if (this.runsSinceLastAccept==0) {
+                    lastSuccessfulRate = this.currentRate;
+                    this.currentRate = lastSuccessfulRate;
+                    logMe.apply(this);
+                }
+                else if (this.runsSinceLastAccept>bumpDist) {
+                    if(this.currentRate>=minRate) {
+                        lastRate = this.currentRate;
+                        this.currentRate *= .99;
+                        logMe.apply(this);
+                    } else if (this.currentRate<minRate && this.currentRate != maxRate) {
+                        lastRate = this.currentRate;
+                        this.currentRate = lastSuccessfulRate;
+                        logMe.apply(this);
+                    }
+                }
+                
+                if(lastRate!=this.currentRate) {
+                    this.runsSinceLastGradientChange = 0;
+                } else {
+                    this.runsSinceLastGradientChange ++;
+                }
+                if(lastSuccessfulRate<minRate) {
+                    lastSuccessfulRate=maxRate;
+                    logMe.apply(this);
+                }
+                lastRate = this.currentRate;
+                
+                return this.currentRate;
+            }
         }
     },
     completers:{
@@ -146,9 +188,9 @@ var neuraljs = exports.neuraljs = {
     trainers:{
         regular:function() {
             return {
-                complete:$N.completers.simple(.05,20000),
-                gradient:$N.gradients.simple(.05),
-                accept:$N.acceptors.simple(),
+                complete:$N.defaults.completer,
+                gradient:$N.defaults.gradient,
+                accept:$N.defaults.acceptor,
                 train:function() {
                     
                     var net = this.network;
@@ -177,7 +219,7 @@ var neuraljs = exports.neuraljs = {
                             var thisTrainData = clonedNet.trainData(thisRunData);
                             thisTrainData.weightKey = this.weightKey;
                             thisTrainData.thresholdKey = this.thresholdKey;
-                            thisTrainData.rate = newRate;
+                            thisTrainData.currentRate = newRate;
                             
                             clonedNet[weightKey=='forwardWeight'?'backwardPropError':'forwardPropError'](thisTrainData);
                             clonedNet.weights(weightKey,thisTrainData);
@@ -209,18 +251,44 @@ var neuraljs = exports.neuraljs = {
                             net.copyFrom(clonedNet);
                             this.lastTotalMse = this.totalMse;
                             this.runsSinceLastAccept = 0;
+                            console.log(this.runs+" New acceptance at Total Error: "+this.totalMse+', gradient:'+newRate);
                         } else {
-                            newRate = this.network.trainer.gradient.apply(this);
                             this.runsSinceLastAccept++;
                         }
                         this.runs++;
-                        if(this.runs%1000==0) {
-                            console.log(this.runs+" Total Error: "+this.totalMse);
+                        newRate = this.network.trainer.gradient.apply(this);
+                        if(this.runs%10==0) {
+                            console.log(this.runs+","+this.runsSinceLastAccept+" Total Error: "+this.totalMse+', gradient:'+newRate);
                         }
                         
                     } while( ! this.network.trainer.complete.apply(this) );
                 }
             };
+        }
+    },
+    constructors:{
+        fullyConnected:function(layerCounts) {
+            var layers = [];
+            var network = $N.network();
+            for(var i=0; i<layerCounts.length; i++) {
+                var thisLayer = [];
+                for(var k=0; k<layerCounts[i]; k++) {
+                    var neuron = network.neuron();
+                    thisLayer.push(neuron);
+                }
+                layers.push(thisLayer);
+            }
+            var previousLayer = layers[0];
+            for(var i=1; i<layerCounts.length; i++) {
+                var thisLayer = layers[i];
+                for(var k=0; k<thisLayer.length; k++) {
+                    for(var j=0; j<previousLayer.length; j++) {
+                        network.synapse(previousLayer[j],thisLayer[k]);
+                    }
+                }
+                previousLayer = thisLayer;
+            }
+            return network;
         }
     },
     samplers:{
@@ -352,7 +420,7 @@ var neuraljs = exports.neuraljs = {
                                 this.activator.derivative(runData.sums[this.id])
                                 * runData.activations[sN.id]
                                 * trainData.errors[this.id] 
-                                * trainData.rate
+                                * trainData.currentRate
                             )
                         );
                     }
@@ -370,7 +438,7 @@ var neuraljs = exports.neuraljs = {
                         this[thresholdKey] + (
                             this.activator.derivative(runData.sums[this.id])
                             * trainData.errors[this.id]
-                            * trainData.rate
+                            * trainData.currentRate
                         )
                     );
                 },
@@ -399,7 +467,7 @@ var neuraljs = exports.neuraljs = {
                 n[threshKey] = n[threshKey] + ( 
                         n.activator.derivative(runData.sums[n.id])
                         * trainData.errors[n.id] 
-                        * trainData.rate 
+                        * trainData.currentRate 
                     );
             }
         }
@@ -603,8 +671,10 @@ var neuraljs = exports.neuraljs = {
                 runs:0,
                 // the number of runs since last accepted candidate clone
                 runsSinceLastAccept:0,
+                runsSinceLastGradientChange:0,
                 // whether the training run ultimately was successful
                 achievedConvergence:false, 
+                currentRate:0.05,
                 
                 network:net,
                 runData:runData,
@@ -612,8 +682,7 @@ var neuraljs = exports.neuraljs = {
                 errors:{},
                 weightKey:'forwardWeight',
                 thresholdKey:'forwardThreshold',
-                // the training rate
-                rate:.02,
+
                 // the source of input vectors
                 samples:{
                     next:function(){return null;},
@@ -680,6 +749,7 @@ var neuraljs = exports.neuraljs = {
             for(var nId in this.neurons) {
                 var n = r.neuron(nId);
                 var thisN = this.neurons[nId];
+                n.activator = thisN.activator;
                 n.forwardThreshold = thisN.forwardThreshold;
                 n.backwardThreshold = thisN.backwardThreshold;
             }
@@ -720,12 +790,13 @@ var neuraljs = exports.neuraljs = {
         return o;
     }
 };
-
-module.extend(exports.neuraljs.defaults,{
-    activator:neuraljs.activators.tanh
-});
-
 var $N = exports.$N = neuraljs;
+module.extend(exports.neuraljs.defaults,{
+    activator:$N.activators.tanh,
+    gradient:$N.gradients.simple(.05),
+    acceptor:$N.acceptors.simple(),
+    completer:$N.completers.simple(.05,20000)
+});
 
 
 
