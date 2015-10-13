@@ -119,31 +119,32 @@ var neuraljs = exports.neuraljs = {
                 return constRate;
             };
         },
-        annealing:function(maxRate,minRate,bumpDist) {
+        annealing:function(maxRate,minRate,bumpDist,dropRate,minDiff) {
             var lastSuccessfulRate = null;
             var lastRate = null;
             return function() {
-                var logMe = function () {
-                    console.log('mnr:'+minRate+',mxr:'+maxRate+',lr:'+lastRate+',cr:'+this.currentRate+',lsr:'+lastSuccessfulRate);
+                var logMe = function (k) {
+                    console.log(k+' mnr:'+minRate+',mxr:'+maxRate+',lr:'+lastRate+',cr:'+this.currentRate+',lsr:'+lastSuccessfulRate+',md:'+minDiff);
                 }
+                var i = 0;
                 if (lastRate==null) {
                     lastSuccessfulRate = this.currentRate = maxRate;
-                    logMe.apply(this);
+                    logMe.apply(this,[i++]);
                 }
-                else if (this.runsSinceLastAccept==0) {
+                else if (this.runsSinceLastAccept==0 && minDiff<(this.totalMse-this.lastTotalMse)) {
                     lastSuccessfulRate = this.currentRate;
                     this.currentRate = lastSuccessfulRate;
-                    logMe.apply(this);
+                    logMe.apply(this,[i++]);
                 }
                 else if (this.runsSinceLastAccept>bumpDist) {
                     if(this.currentRate>=minRate) {
                         lastRate = this.currentRate;
-                        this.currentRate *= .99;
-                        logMe.apply(this);
+                        this.currentRate *= dropRate;
+                        logMe.apply(this,[i++]);
                     } else if (this.currentRate<minRate && this.currentRate != maxRate) {
                         lastRate = this.currentRate;
                         this.currentRate = lastSuccessfulRate;
-                        logMe.apply(this);
+                        logMe.apply(this,[i++]);
                     }
                 }
                 
@@ -154,7 +155,7 @@ var neuraljs = exports.neuraljs = {
                 }
                 if(lastSuccessfulRate<minRate) {
                     lastSuccessfulRate=maxRate;
-                    logMe.apply(this);
+                    logMe.apply(this,[i++]);
                 }
                 lastRate = this.currentRate;
                 
