@@ -6,34 +6,15 @@ var createAndTrainWordTimeSeriesNetwork = function(words) {
     for(var id in network.neurons) {
         network.neurons[id].activator = $N.activators.sigmoid;
     }
+    var lo = network.lo = 0.0;
+    var hi = network.hi = 1.0;
     
-    // assign each input to a letter
-    var inputs = network.getInputs();
-    var letters = {};
-    var j=0;
-    var a = ("a".charCodeAt(0));
-    for(var id in inputs) {
-        letters[ String.fromCharCode( a + j ) ] = id;
-        j++;
-    }
-    
-    // associated each word to an output
-    var outputs = network.getOutputs();
-    var outputIds = {};
-    var i = 0;
-    for(var id in outputs) {
-        outputIds[words[i]] = id;
-        i++;
-        if(i>words.length) break;
-    }
-    var lo = 0.0;
-    var hi = 1.0;
-    
-    // generate and input/output sample for each word
-    var samples = [];
-    var samplesByWord = {};
-    for(var i=0; i<words.length; i++) {
+    network.createSampleFromWord = function(word) {
         
+        var network = this;
+        var inputs = network.getInputs();
+        var outputIds = network.samples.outputIdsByWord;
+        var letters = network.samples.inputIdsByLetter;
         var thisSample = {};
         
         // zero out the sample
@@ -43,9 +24,7 @@ var createAndTrainWordTimeSeriesNetwork = function(words) {
         for(var id in outputs) {
             thisSample[id] = lo;
         }
-        
-        var word = words[i];
-        
+
         for(var j=0; j<word.length; j++) {
             //console.log(word[j]);
             // lower each by half
@@ -57,17 +36,54 @@ var createAndTrainWordTimeSeriesNetwork = function(words) {
             // assign the letter input to hi
             thisSample[ letters[ word[j] ] ] = hi;
         }
-        thisSample[outputIds[word]] = hi;
-        samples.push(thisSample);
-        samplesByWord[word] = thisSample;
+        thisSample[ outputIds[ word ] ] = hi;
+        
+        return thisSample;
     }
-    // create and assign the sampler
-    var sampler = network.sampler('shuffler');
-    sampler.samples = samples;
-    network.samples = sampler;
-    network.samples.samplesByWord = samplesByWord;
+    
+    network.addOutputWord = function(word) {
+        var layer = this.getNextLayer(this.getOutputs(),'inputs');
+        var newOut = this.neuron();
+        for(var nId in layer) {
+            this.synapse(this.neurons[nId],newOut);
+        }
+        this.samples.outputIdsByWord[word] = newOut.id;
+        return newOut;
+    }
+    
+    network.samples = network.sampler('shuffler');
+    network.samples.samples = [];
+    
+    // assign each input to a letter
+    var inputs = network.getInputs();
+    var letters = {};
+    var j=0;
+    var a = ("a".charCodeAt(0));
+    for(var id in inputs) {
+        letters[ String.fromCharCode( a + j ) ] = id;
+        j++;
+    }
     network.samples.inputIdsByLetter = letters;
+    
+    // associated each word to an output
+    var outputs = network.getOutputs();
+    var outputIds = {};
+    var i = 0;
+    for(var id in outputs) {
+        outputIds[words[i]] = id;
+        i++;
+        if(i>words.length) break;
+    }
     network.samples.outputIdsByWord = outputIds;
+    
+    // generate and input/output sample for each word
+    network.samples.samplesByWord = {};
+    for(var i=0; i<words.length; i++) {
+        var word = words[i];
+        var sample = network.createSampleFromWord(words[i]);
+        network.samples.samples.push(sample);
+        network.samples.samplesByWord[word] = sample;
+    }
     // turn logging off, for training
     var ol = network.log;
     network.log = function(m) {};
@@ -75,7 +91,7 @@ var createAndTrainWordTimeSeriesNetwork = function(words) {
     var og = $N.defaults.gradient;
     $N.defaults.gradient = $N.gradients.annealing(1.0,0.05,10,0.7,.00001);
     // train the network
-    network.train(sampler);
+    network.train(network.samples);
     // restore the gradient and logging
     $N.defaults.gradient = og;
     network.log = ol;
@@ -240,16 +256,75 @@ var tests = {
     var words = [
         "pants",
         "taco",
+        "apple",
+        "atrocity",
+        "banana",
+        "borogroves",
+        "butter",
+        "facetious",
+        "galaxy",
+        "harmony",
+        "mimsy",
+        "space",
+        "philanthropy"
     ];
     var network = createAndTrainWordTimeSeriesNetwork(words);
-    console.log(network.samples.samplesByWord);
-    console.log(network.samples.inputIdsByLetter);
-    console.log(network.samples.outputIdsByWord);
-    var preData = network.forward(network.samples.samplesByWord["taco"]);
-    //TODO:create a randomized sample set, using feedforward to fill in output values
-    //TODO:run the original samples and validate that max mse is still within tolerance
-    var randomSamples = $N.utils.randomSamples(network,network.samples.samples);
-    console.log(runData);
+    
+    network.log = function(m) {};
+    
+    // train the network
+    var trainData = network.trainData();
+    trainData.samples = network.samples;
+    console.log("TOTAL MSE, pre: "+network.totalMse(trainData));
+    
+    // create a randomized sample set, using feedforward to fill in output values
+    var newOutput = network.addOutputWord("parsimony");
+    var outputs = network.getOutputs();
+    var inputs = network.getInputs();
+    var newSamples = [];
+    for(var i=0; i<network.samples.samples.length; i++) {
+        var newSample = {};
+        for(var inId in inputs) {
+            newSample[inId] = Math.random();
+        }
+        var runData = network.forward(newSample);
+        for(var outId in outputs) {
+            newSample[outId] = 
+                outId == newOutput.id ? network.lo : 
+                runData.activations[outId];
+        }
+        // exclude the new output from back prop training
+        //newSample.exclude = {};
+        //newSample.exclude[newOutput.id]=newOutput;
+        newSamples.push(newSample);
+    }
+    var newSample = network.createSampleFromWord("parsimony");
+    newSamples.push(newSample);
+    
+    var oldSamples = network.samples.samples;
+    network.samples.samples = newSamples;
+    
+    // train with the new samples
+    // turn logging off, for training
+    var ol = network.log;
+    network.log = function(m) {};
+    // swap out the default gradient
+    var og = $N.defaults.gradient;
+    $N.defaults.gradient = $N.gradients.annealing(1.0,0.05,10,0.7,.00001);
+    // train the network
+    network.train(network.samples);
+    // restore the gradient and logging
+    $N.defaults.gradient = og;
+    network.log = ol;
+    
+    // restore old samples, adding the new
+    network.samples.samples = oldSamples;
+    network.samples.samples.push(newSample);
+    
+    // train the network
+    var trainData = network.trainData();
+    trainData.samples = network.samples;
+    console.log("TOTAL MSE, post: "+network.totalMse(trainData));
 },
 'validateComparativeFunction':function() {
     // validate that a network can be trained,
@@ -294,9 +369,9 @@ var tests = {
         "toast", // 356
         "tricky", // 654
         "philanthropy", // 362
-        //"phillistine", // 356
-        //"night", // 532
-        // "day", // 20000
+        "phillistine", // 356
+        "night", // 532
+        "day", // 20000
         //"morning",
         //"evening","afternoon",
         //"one",
@@ -304,7 +379,7 @@ var tests = {
         //"three","four","five","six","seven","eight","nine","ten","zero"
     ];
     var network = createAndTrainWordTimeSeriesNetwork(words);
-    var runData = network.forward(sampler.samplesByWord.philanthropy);
+    var runData = network.forward(network.samples.samplesByWord.philanthropy);
     console.log(runData);
 }
 };
@@ -313,7 +388,7 @@ try {
     //tests['validatePreserveNetworkWithGeneratedSample']();
     tests['everythingForward']();
     tests['trainingXOR']();
-    tests['validateTimeSeries']();
+    //tests['validateTimeSeries']();
 } catch(e) {
     console.log(e.msg);
     console.log(e.stack);
