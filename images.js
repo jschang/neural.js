@@ -1,4 +1,12 @@
-var network = $N.constructors.fullyConnected(28*28,28*28,1);
+var network = $N.constructors.fullyConnected([28*28,28*28]);
+for(var id in network.neurons) {
+    network.neurons[id].activator = $N.activators.sigmoid;
+}
+network.lo = 0;
+network.hi = 1;
+network.log = function() {};
+network.lastRun = null;
+
 function canvasCoords(evt) {
     return {
         x:Math.floor((evt.pageX-evt.currentTarget.offsetLeft)*(evt.currentTarget.width/evt.currentTarget.clientWidth)),
@@ -17,6 +25,14 @@ function canvasCoords(evt) {
         }
     };
 }
+
+function isClose(a,b,epi) {
+    if(typeof(epi)=='undefined') {
+        epi = .00001;
+    }
+    return Math.abs(a-b) < epi;
+}
+
 var canvasHandler = {
     canvas:null,
     image:null,
@@ -36,15 +52,43 @@ var canvasHandler = {
         var sample = {};
         var idx = 0;
         for(var id in inputs) {
-            var lum = (0.299*data[idx] + 0.587*data[idx] + 0.114*data[idx])/255.0;
+            var lum = (0.299*data[idx] + 0.587*data[idx+1] + 0.114*data[idx+2])/255.0;
             sample[id] = lum;
             idx+=4;
         }
-        console.log(network.forward(sample));
+        var runData = network.forward(sample);
+        console.log('runData:');
+        console.log(runData);
+        console.log('sample:');
+        console.log(sample);
+        var outputs = network.getOutputs();
+        var out = {};
+        for(var id in outputs) {
+            out[id] = runData.activations[id];
+        }
+        console.log('output:');
+        console.log(out);
+        
+        if(network.lastRun!=null) {
+            var simAct = {};
+            console.log('similar activations:');
+            for(var id in network.neurons) {
+                if( isClose(network.lastRun.activations[id],runData.activations[id]) && runData.activations[id]!=1) {
+                    simAct[id] = {
+                        last:network.lastRun.activations[id],
+                        cur:runData.activations[id],
+                        delta:Math.abs(network.lastRun.activations[id]-runData.activations[id])
+                    };
+                }
+            }
+            console.log(simAct);
+        }
+        network.lastRun = runData;
     },
     'mousedown':function(evt) {
     }
 };
+
 $('#load_url').click(function(evt) {
     var url = $('#url').val();
     var image = $('<img/>')[0];
