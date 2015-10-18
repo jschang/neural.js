@@ -17,6 +17,37 @@ $(document).ready(function() {
     console.log(network.outputIdsByLetter);
 });
 
+function toJson(arr) {
+    var parts = [];
+    var is_list = (Object.prototype.toString.apply(arr) === '[object Array]');
+
+    for(var key in arr) {
+    	var value = arr[key];
+        if(typeof value == "object") { //Custom handling for arrays
+            if(is_list) parts.push(toJson(value)); /* :RECURSION: */
+            else parts.push('"' + key + '":' + toJson(value)); /* :RECURSION: */
+            //else parts[key] = array2json(value); /* :RECURSION: */
+            
+        } else {
+            var str = "";
+            if(!is_list) str = '"' + key + '":';
+
+            //Custom handling for multiple data types
+            if(typeof value == "number") str += value; //Numbers
+            else if(value === false) str += 'false'; //The booleans
+            else if(value === true) str += 'true';
+            else str += '"' + value + '"'; //All other things
+            // :TODO: Is there any more datatype we should be in the lookout for? (Functions?)
+
+            parts.push(str);
+        }
+    }
+    var json = parts.join(",");
+    
+    if(is_list) return '[' + json + ']';//Return numerical JSON
+    return '{' + json + '}';//Return associative JSON
+}
+
 function canvasCoords(evt) {
     return {
         x:Math.floor((evt.pageX-evt.currentTarget.offsetLeft)*(evt.currentTarget.width/evt.currentTarget.clientWidth)),
@@ -149,4 +180,50 @@ $('#train').click(function(evt) {
     network.train(sampler);
 });
 $('#evaluate').click(function(evt) {
+});
+$('#load').click(function(evt) {
+    console.log('on load');
+    $.ajax('neural.php',{
+        method:'POST',
+        data:{
+            db:'neuraljs',
+            col:'handwriting',
+            key:'handwriting',
+            op:'select'
+        },
+        success:function(data) {
+            console.log('success');
+            console.log(data);
+        }
+    });
+});
+
+var doSave = false;
+setInterval(function() {
+    if(!doSave) {
+        return;
+    }
+    doSave = false;
+    console.log('on save');
+    var data = network.dataOnly();
+    console.log(data);
+    console.log(toJson(data));
+    return;
+    $.ajax('neural.php',{
+        method:'POST',
+        data:{
+            db:'neuraljs',
+            col:'handwriting',
+            key:'handwriting',
+            op:'update',
+            doc:JSON.stringify(data)
+        },
+        success:function(data) {
+            console.log('success');
+            console.log(data);
+        }
+    });
+},1000);
+$('#save').click(function(evt) {
+    doSave = true;
 });
