@@ -708,25 +708,7 @@ var neuraljs = exports.neuraljs = {
             }
             return goodSession;
         }
-        o.totalMse = function(trainData) {
-            /* original
-            this.totalMse = 0.0; 
-            this.sampleCount = 0.0;
-            while( (this.thisSample = samples.next()) != null ) {
-                
-                var thisRunData = clonedNet[weightKey=='forwardWeight'?'forward':'backward'](this.thisSample);
-                
-                var thisTrainData = clonedNet.trainData(thisRunData);
-                thisTrainData.weightKey = this.weightKey;
-                thisTrainData.thresholdKey = this.thresholdKey;
-                
-                this.totalMse += Math.pow(thisTrainData.mse(),.5);
-                this.sampleCount += 1.0;
-            }
-            samples.reset();
-            
-            this.totalMse = this.totalMse / this.sampleCount;
-            */
+        o.totalMse = function(trainData,log) {
             trainData.sampleCount = 0.0;
             trainData.totalMse = 0.0;
             while( (trainData.thisSample = trainData.samples.next()) != null ) {
@@ -734,7 +716,13 @@ var neuraljs = exports.neuraljs = {
                 var thisRunData = this
                     [trainData.weightKey=='forwardWeight'?'forward':'backward']
                     (trainData.thisSample);
-                
+                if(typeof(log)!='undefined') {
+                    var outputs = {};
+                    for(var id in this.getOutputs()) {
+                        outputs[id] = thisRunData.activations[id];
+                    }
+                    console.log(outputs);
+                }
                 var thisTrainData = this.trainData(thisRunData);
                 thisTrainData.weightKey = trainData.weightKey;
                 thisTrainData.thresholdKey = trainData.thresholdKey;

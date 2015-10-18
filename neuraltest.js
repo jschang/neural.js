@@ -240,6 +240,7 @@ var tests = {
         delete(samples.samples[i][net.drain.id]);
     }
     $N.utils.assertTrue(net.train(samples));
+    console.log(net.dataOnly());
     for(var i = 0; i<samples.samples.length; i++ ) {
         var runData = net.forward(samples.samples[i]);
         console.log('sample: '+JSON.stringify(samples.samples[i]));
@@ -271,18 +272,14 @@ var tests = {
     var network = createAndTrainWordTimeSeriesNetwork(words);
     
     network.log = function(m) {};
-    
-    // train the network
-    var trainData = network.trainData();
-    trainData.samples = network.samples;
-    console.log("TOTAL MSE, pre: "+network.totalMse(trainData));
-    
+        
     // create a randomized sample set, using feedforward to fill in output values
     var newOutput = network.addOutputWord("parsimony");
     var outputs = network.getOutputs();
     var inputs = network.getInputs();
     var newSamples = [];
-    for(var i=0; i<network.samples.samples.length; i++) {
+    //for(var i=0; i < (Object.keys(network.synapses).length + Object.keys(network.neurons).length); i++) {
+    for(var i=0; i < network.samples.samples.length*10; i++) {
         var newSample = {};
         for(var inId in inputs) {
             newSample[inId] = Math.random();
@@ -294,13 +291,12 @@ var tests = {
                 runData.activations[outId];
         }
         // exclude the new output from back prop training
-        //newSample.exclude = {};
-        //newSample.exclude[newOutput.id]=newOutput;
+        newSample.exclude = {};
+        newSample.exclude[newOutput.id]=newOutput;
         newSamples.push(newSample);
     }
     var newSample = network.createSampleFromWord("parsimony");
     newSamples.push(newSample);
-    
     var oldSamples = network.samples.samples;
     network.samples.samples = newSamples;
     
@@ -319,12 +315,16 @@ var tests = {
     
     // restore old samples, adding the new
     network.samples.samples = oldSamples;
+    for(var i=0;i<oldSamples.length;i++) {
+        network.samples.samples[i][newOutput.id] = network.lo;
+    }
     network.samples.samples.push(newSample);
+    //console.log(network.samples.samples);
     
     // train the network
     var trainData = network.trainData();
     trainData.samples = network.samples;
-    console.log("TOTAL MSE, post: "+network.totalMse(trainData));
+    console.log("TOTAL MSE, post: "+network.totalMse(trainData,true));
 },
 'validateComparativeFunction':function() {
     // validate that a network can be trained,
@@ -385,10 +385,10 @@ var tests = {
 };
 
 try {
-    //tests['validatePreserveNetworkWithGeneratedSample']();
     tests['everythingForward']();
     tests['trainingXOR']();
-    //tests['validateTimeSeries']();
+    tests['validateTimeSeries']();
+    tests['validatePreserveNetworkWithGeneratedSample']();
 } catch(e) {
     console.log(e.msg);
     console.log(e.stack);
