@@ -70,6 +70,7 @@ var neuraljs = exports.neuraljs = {
     },
     activators:{
         tanh:{
+            name:'tanh',
             calculate:function(x) {
                 //return Math.tanh(x);
                 var num   = Math.pow(Math.E,x)-Math.pow(Math.E,-x);
@@ -82,6 +83,7 @@ var neuraljs = exports.neuraljs = {
             }
         },
         sigmoid:{
+            name:'sigmoid',
             calculate:function(x) {
                 //x = $N.utils.clamp(x,.0000000001,9999999999);
                 return 1.0 / ( 1.0 + Math.pow(Math.E,-x) );
@@ -427,7 +429,18 @@ var neuraljs = exports.neuraljs = {
                     );
                 },
                 activator:neuraljs.defaults.activator,
-                log:function(msg) { this.network.log(msg); }
+                log:function(msg) { this.network.log(msg); },
+                data:function() {
+                    var ret = {};
+                    ret.id = this.id;
+                    ret.forwardThreshold = this.forwardThreshold;
+                    ret.backwardThreshold = this.backwardThreshold;
+                    ret.outputs = {};
+                    for(var id in this.outputs) {
+                        ret.outputs[id] = this.outputs[id].data();
+                    }
+                    return ret;
+                }
             };
             this.neurons[n.id] = n;
             return n;
@@ -488,6 +501,13 @@ var neuraljs = exports.neuraljs = {
                 forwardWeight:Math.random(),
                 backwardWeight:Math.random(),
                 network:net,
+                data:function() {
+                    var ret = {};
+                    ret.forwardWeight = this.forwardWeight;
+                    ret.backwardWeight = this.backwardWeight;
+                    ret.outputId = this.output ? this.output.id : null;
+                    return ret;
+                },
                 str:function(weightKey) {
                     if(typeof(weightKey)=='undefined') {
                         return this.id+'('+(typeof(this.input)!='undefined'?this.input.id:'null')
@@ -760,6 +780,11 @@ var neuraljs = exports.neuraljs = {
             }
             return t;
         }
+        o.data = function() {
+            var ret = {};
+            ret.inputIds = Object.keys(this.getInputs());
+            return ret;
+        }
         o.cloneAll = function() {
             var r = $N.network();
             for(var i in this) {
@@ -807,6 +832,38 @@ var neuraljs = exports.neuraljs = {
                 thisS.backwardWeight = s.backwardWeight;
             }
             this.lastId = r.lastId;
+        }
+        o.save = function(name) {
+            $.ajax('neural.php',{
+                method:'POST',
+                data:{
+                    db:'neuraljs',
+                    col:'networks',
+                    key:name,
+                    op:'update',
+                    doc:JSON.stringify(network.data())
+                },
+                success:function(data) {
+                    console.log('success');
+                    console.log(data);
+                }
+            });
+            for(var id in network.neurons) {
+                $.ajax('neural.php',{
+                    method:'POST',
+                    data:{
+                        db:'neuraljs',
+                        col:'neurons',
+                        key:name+'_'+id,
+                        op:'update',
+                        doc:JSON.stringify(network.neurons[id].data())
+                    },
+                    success:function(data) {
+                        console.log('success');
+                        console.log(data);
+                    }
+                });  
+            }
         }
         return o;
     }
