@@ -17,6 +17,31 @@ $(document).ready(function() {
     console.log(network.outputIdsByLetter);
 });
 
+function getActualData() {
+    var primaryCanvas = $('#canvas')[0];
+    
+    // normalize to our input format and attach to the new canvas for the training set
+    var ctx = primaryCanvas.getContext('2d');
+    var imgData = ctx.getImageData(0,0,primaryCanvas.width,primaryCanvas.height);
+    var actualData = [];
+    for (var i=0;i<imgData.data.length;i+=4)
+    {
+        if( imgData.data[i+0]==imgData.data[i+1]
+            && imgData.data[i+1]==imgData.data[i+2]
+            && imgData.data[i+2]==255 ) {
+            actualData[i/4] = network.lo;
+        } else actualData[i/4] = network.hi;
+    }
+    for(var i=0; i<primaryCanvas.height; i++) {
+        var s = "";
+        for(var j=0; j<primaryCanvas.width; j++) {
+            s = s+','+actualData[(primaryCanvas.width*i)+j];
+        }
+        console.log(s);
+    }
+    return actualData;
+}
+
 function canvasCoords(evt) {
     return {
         x:Math.floor((evt.pageX-evt.currentTarget.offsetLeft)*(evt.currentTarget.width/evt.currentTarget.clientWidth)),
@@ -76,32 +101,13 @@ $('#canvas').mousemove(function(evt) {
 $('#add').mouseup(function(evt) {
         
     var primaryCanvas = $('#canvas')[0];
+    var actualData = getActualData();
     
     // duplicate the properties of our primary canvas
     var newSample = $('<div style="clear:both;"><canvas style="border:1px solid blue;"></canvas></div>')[0];
     var newSampleCanvas = $('canvas',newSample)[0];
     newSampleCanvas.width = primaryCanvas.width;
     newSampleCanvas.height = primaryCanvas.height;
-    
-    // normalize to our input format and attach to the new canvas for the training set
-    var ctx = primaryCanvas.getContext('2d');
-    var imgData = ctx.getImageData(0,0,primaryCanvas.width,primaryCanvas.height);
-    var actualData = [];
-    for (var i=0;i<imgData.data.length;i+=4)
-    {
-        if( imgData.data[i+0]==imgData.data[i+1]
-            && imgData.data[i+1]==imgData.data[i+2]
-            && imgData.data[i+2]==255 ) {
-            actualData[i/4] = network.lo;
-        } else actualData[i/4] = network.hi;
-    }
-    for(var i=0; i<primaryCanvas.height; i++) {
-        var s = "";
-        for(var j=0; j<primaryCanvas.width; j++) {
-            s = s+','+actualData[(primaryCanvas.width*i)+j];
-        }
-        console.log(s);
-    }
     newSampleCanvas.actualData = actualData;
     
     // actually fill in the new canvas with data from our primary
@@ -149,9 +155,24 @@ $('#train').click(function(evt) {
     network.train(sampler);
 });
 $('#evaluate').click(function(evt) {
+    var actualData = getActualData();
+    $.ajax('neural.php',{
+        method:'POST',
+        data:{
+            data:actualData.join(','),
+            lo:network.lo,
+            hi:network.hi,
+            op:'evaluate'
+        },
+        success:function(data) {
+            console.log('success');
+            console.log(data);
+        }
+    });
 });
 $('#load').click(function(evt) {
     console.log('on load');
+    var actualData = getActualData();
     $.ajax('neural.php',{
         method:'POST',
         data:{
