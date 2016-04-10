@@ -177,16 +177,25 @@ case 'update':
     $m->$db->$col->update(array('_name'=>$key),$doc,array('upsert'=>true));
     break;
 case 'evaluate':
+    //{"Prediction":{"details":{"Algorithm":"SGD","PredictiveModelType":"MULTICLASS"},"predictedLabel":"8","predictedScores":{"0":0.002081640297547,"1":1.1004256066371e-6,"2":0.0045767552219331,"3":0.043930441141129,"4":0.00021729028958362,"5":0.010823244228959,"6":0.0094735715538263,"7":0.00034611747832969,"8":0.92648476362228,"9":0.0020650741644204}}}
     $vals = explode(',',$_REQUEST['data']);
-    $payload['MLModelId'] = 'ml-8vhKkVlGK6w';
+    $payload['MLModelId'] = 'ml-azmKcl3P6jH';
     $payload['PredictEndpoint'] = "https://realtime.machinelearning.us-east-1.amazonaws.com";
     $payload['Record'] = array();
     foreach($vals as $i=>$val) {
         $payload['Record']['Var'.$i] 
-            = ''.( $_REQUEST['lo']==$val ? 10 : 150 );
+            = ''.( $_REQUEST['lo']==$val ? 10 : 250 );
     }
     $p = new AWSPost();
-    echo json_encode($p->post($payload));
+    $res = $p->post($payload);
+    $max = 0; $bestK = 'undetermined';
+    foreach($res->Prediction->predictedScores as $k=>$v) {
+        if($v>$max) {
+            $max = $v;
+            $bestK = $k;
+        }
+    }
+    echo json_encode(array('result'=>$bestK,'scores'=>$res->Prediction->predictedScores));
     break;
 }
 
