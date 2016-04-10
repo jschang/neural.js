@@ -39,7 +39,7 @@ class AWSPost {
         
         $sign = hash_hmac('sha256', $this->_dateStamp, 'AWS4'.$this->_awsSecret, true );
         $sign = hash_hmac('sha256', $this->_regionName, $sign, true );
-        $sign = hash_hmac('sha256', $this->_awsTarget, $sign, true );
+        $sign = hash_hmac('sha256', $this->_serviceName, $sign, true );
         $sign = hash_hmac('sha256', 'aws4_request', $sign, true );
         
         return $sign;
@@ -62,8 +62,8 @@ class AWSPost {
         $canonicalRequest[] = hash('sha256',$requestString);
         $req = implode("\n",$canonicalRequest);
         
-        error_log("Canonical-request: ".$req);
-        echo "\nCanonical-request: \n".$req."\n\n";
+        //error_log("Canonical-request: ".$req);
+        //echo "\nCanonical-request: \n".$req."\n\n";
         
         return $req;
     }
@@ -78,8 +78,8 @@ class AWSPost {
         $stringToSign[] = hash('sha256',$requestString);
         $stringToSign = implode("\n",$stringToSign);
         
-        error_log('String-to-sign: '.$stringToSign);
-        echo "\nString-to-sign:\n".$stringToSign."\n\n";
+        //error_log('String-to-sign: '.$stringToSign);
+        //echo "\nString-to-sign:\n".$stringToSign."\n\n";
         
         return hash_hmac('sha256', $stringToSign, $this->_getSignatureKey(), false);
     }
@@ -98,7 +98,8 @@ class AWSPost {
             'X-Amz-Target' => $this->_awsTarget
             );
         $awsHeaders = array(
-            'Authorization'=>'AWS4-HMAC-SHA256 Credential='.$this->_awsKey.'/'.$this->_credentialScope.', '
+            'Authorization'=>
+                'AWS4-HMAC-SHA256 Credential='.$this->_awsKey.'/'.$this->_credentialScope.', '
                 .'SignedHeaders='.strtolower(implode(';',array_keys($headers))).', '
                 .'Signature='.$this->_getSignature($urlParts,$headers,$request)
             );
@@ -151,7 +152,7 @@ class AWSPost {
         curl_close($ch);
 
         $requestTime = microtime(true) - $tsStart;
-        error_log("total request time - " . $requestTime . " ms");
+        
         return $decodedResponse; 
     }
 }
@@ -182,11 +183,10 @@ case 'evaluate':
     $payload['Record'] = array();
     foreach($vals as $i=>$val) {
         $payload['Record']['Var'.$i] 
-            = $_REQUEST['lo']==$val 
-            ? 0 : 255;
+            = ''.( $_REQUEST['lo']==$val ? 10 : 150 );
     }
     $p = new AWSPost();
-    echo $p->post($payload);
+    echo json_encode($p->post($payload));
     break;
 }
 
