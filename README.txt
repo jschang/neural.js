@@ -1,0 +1,3 @@
+A simple, pure javascript FFBP ANN implementation.  I was originally going to input each letter manually, then I found the MNIST data, then I found AWS ML, so I added an "Evaluate in AWS ML" button.  I found that, though AWS ML claimed the MNIST training data passed well against the MNIST provided test digits, it failed to evaluate anything I actually sent up.  Seems to recognize everything as a 3 or an 8.  The HTML5 is very circa 2005, but writing a nifty new React/Angular based app wasn't my focus.
+
+I'll probably take a breather then use this same crappy little HTML5 app to play with Torch and TensorFlow.  Maybe in a few months.  =)

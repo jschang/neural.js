@@ -110,7 +110,10 @@ $('#add').mouseup(function(evt) {
     newSampleCanvas.height = primaryCanvas.height;
     newSampleCanvas.actualData = actualData;
     
-    // actually fill in the new canvas with data from our primary
+    // get the img data from our primary and add to the new canvas
+    var primaryCanvas = $('#canvas')[0];
+    var ctx = primaryCanvas.getContext('2d');
+    var imgData = ctx.getImageData(0,0,primaryCanvas.width,primaryCanvas.height);
     var newSampleCtx = newSampleCanvas.getContext('2d');
     newSampleCtx.createImageData(primaryCanvas.width,primaryCanvas.height);
     newSampleCtx.putImageData(imgData,0,0);
@@ -127,11 +130,7 @@ $('#add').mouseup(function(evt) {
     $('#training_set').append(newSample);
     
     // reset the primary canvas
-    $('#canvas').each(function() {
-        var ctx = this.getContext("2d");
-        ctx.fillStyle = 'white';
-        ctx.fillRect(0,0,this.width,this.height);
-    });
+    $('#clear').click();
 });
 $('#train').click(function(evt) {
     var samples = [];
@@ -168,6 +167,14 @@ $('#evaluate').click(function(evt) {
             console.log('success');
             console.log(data);
         }
+    });
+});
+$('#clear').click(function(evt) {
+    // reset the primary canvas
+    $('#canvas').each(function() {
+        var ctx = this.getContext("2d");
+        ctx.fillStyle = 'white';
+        ctx.fillRect(0,0,this.width,this.height);
     });
 });
 $('#load').click(function(evt) {

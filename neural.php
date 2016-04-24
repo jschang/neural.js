@@ -133,7 +133,7 @@ class AWSPost {
             }
             error_log('Error Message: '.$msg);
             error_log('RESPONSE: '.$response);
-            echo $response;
+            //echo $response;
             error_log('Curl Info: '.print_r($info,true));
             throw new Exception($msg);
         } elseif ($response === false) {
@@ -183,7 +183,7 @@ case 'evaluate':
     $payload['PredictEndpoint'] = "https://realtime.machinelearning.us-east-1.amazonaws.com";
     $payload['Record'] = array();
     foreach($vals as $i=>$val) {
-        $payload['Record']['Var'.$i] 
+        $payload['Record']['Var'.($i+1)] 
             = ''.( $_REQUEST['lo']==$val ? 10 : 250 );
     }
     $p = new AWSPost();
